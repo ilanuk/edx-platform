@@ -2,7 +2,11 @@
 from django.conf.urls import url
 
 from lms.djangoapps.program_enrollments.api.v1.constants import PROGRAM_UUID_PATTERN
-from lms.djangoapps.program_enrollments.api.v1.views import ProgramCourseEnrollmentsView, ProgramEnrollmentsView
+from lms.djangoapps.program_enrollments.api.v1.views import (
+    ProgramEnrollmentsView,
+    ProgramCourseEnrollmentsView,
+    ProgramCourseEnrollmentOverviewView,
+)
 from openedx.core.constants import COURSE_ID_PATTERN
 
 
@@ -21,5 +25,12 @@ urlpatterns = [
         ),
         ProgramCourseEnrollmentsView.as_view(),
         name="program_course_enrollments"
+    ),
+    url(
+        r'^programs/{program_uuid}/overview/'.format(
+            program_uuid=PROGRAM_UUID_PATTERN,
+        ),
+        ProgramCourseEnrollmentOverviewView.as_view(),
+        name="program_course_enrollments_overview"
     ),
 ]
