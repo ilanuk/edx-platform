@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=UserSocialAuth)
-def martriculate_learner(sender, instance, **kwargs):  # pylint: disable=unused-argument
+def matriculate_learner(sender, instance, **kwargs):  # pylint: disable=unused-argument
     """
     Post-save signal to update any waiting program enrollments with a user,
     and enroll the user in any waiting course enrollments.
@@ -25,9 +25,16 @@ def martriculate_learner(sender, instance, **kwargs):  # pylint: disable=unused-
     try:
         user = instance.user
         provider_slug, external_user_key = instance.uid.split(':')
-        if not SAMLProviderConfig.objects.get(slug=provider_slug).organization:
+        if not SAMLProviderConfig.objects.with_active_flag().filter(is_active=1).get(slug=provider_slug).organization:
             return
     except (AttributeError, ValueError, SAMLProviderConfig.DoesNotExist):
+        return
+    except SAMLProviderConfig.MultipleObjectsReturned:
+        logger.warning(
+            u'Unable to activate waiting enrollments for user=%s.'
+            u'  Multiple active SAML configurations found for slug=%s. Expected one.',
+            user.id,
+            provider_slug)
         return
 
     incomplete_enrollments = ProgramEnrollment.objects.filter(

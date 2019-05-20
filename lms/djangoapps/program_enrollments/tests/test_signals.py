@@ -19,6 +19,7 @@ from openedx.core.djangoapps.content.course_overviews.tests.factories import Cou
 from student.models import CourseEnrollmentException
 from student.tests.factories import CourseEnrollmentFactory, UserFactory
 from third_party_auth.tests.factories import SAMLProviderConfigFactory
+from third_party_auth.models import SAMLProviderConfig
 
 
 class SocialAuthEnrollmentCompletionSignalTest(TestCase):
@@ -45,7 +46,7 @@ class SocialAuthEnrollmentCompletionSignalTest(TestCase):
 
         for course_key in cls.course_keys:
             CourseOverviewFactory(id=course_key)
-        SAMLProviderConfigFactory.create(organization=cls.organization, slug=cls.provider_slug)
+        cls.provider_config = SAMLProviderConfigFactory.create(organization=cls.organization, slug=cls.provider_slug)
 
     def _create_waiting_program_enrollment(self):
         """ helper method to create a waiting program enrollment """
@@ -90,6 +91,22 @@ class SocialAuthEnrollmentCompletionSignalTest(TestCase):
         self._assert_program_enrollment_user(program_enrollment)
         for program_course_enrollment in program_course_enrollments:
             self._assert_program_course_enrollment(program_course_enrollment)
+
+    def test_only_active_saml_config_used(self):
+        """ makes sure only the active row in SAMLProvider config is used """
+        program_enrollment = self._create_waiting_program_enrollment()
+
+        # update will create a second record
+        self.provider_config.organization = None
+        self.provider_config.save()
+        self.assertEqual(len(SAMLProviderConfig.objects.all()), 2)
+
+        UserSocialAuth.objects.create(
+            user=self.user,
+            uid='{0}:{1}'.format(self.provider_slug, self.external_id)
+        )
+        program_enrollment.refresh_from_db()
+        self.assertIsNone(program_enrollment.user)
 
     def test_learner_already_enrolled_in_course(self):
         course_key = self.course_keys[0]
