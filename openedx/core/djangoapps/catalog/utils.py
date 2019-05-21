@@ -30,6 +30,7 @@ from student.models import CourseEnrollment
 
 logger = logging.getLogger(__name__)
 
+missing_details_msg_tpl = u'Failed to get details for program {uuid} from the cache.'
 
 def create_catalog_api_client(user, site=None):
     """Returns an API client which can be used to make Catalog API requests."""
@@ -82,7 +83,7 @@ def check_catalog_integration_and_get_user(error_message_field):
         return None, catalog_integration
 
 
-def get_programs(site=None, uuid=None, course=None):  # pylint: disable=redefined-outer-name
+def get_programs(site=None, uuid=None, uuids=None, course=None):  # pylint: disable=redefined-outer-name
     """Read programs from the cache.
 
     The cache is populated by a management command, cache_programs.
@@ -90,16 +91,15 @@ def get_programs(site=None, uuid=None, course=None):  # pylint: disable=redefine
     Keyword Arguments:
         site (Site): django.contrib.sites.models object
         uuid (string): UUID identifying a specific program to read from the cache.
+        uuids (list of string): UUIDs identifying a specific programs to read from the cache.
         course (string): course id identifying a specific course run to read from the cache.
 
     Returns:
         list of dict, representing programs.
         dict, if a specific program is requested.
     """
-    if len([arg for arg in (site, uuid, course) if arg is not None]) != 1:
+    if len([arg for arg in (site, uuid, uuids, course) if arg is not None]) != 1:
         raise TypeError('get_programs takes exactly one argument')
-
-    missing_details_msg_tpl = u'Failed to get details for program {uuid} from the cache.'
 
     if uuid:
         program = cache.get(PROGRAM_CACHE_KEY_TPL.format(uuid=uuid))
@@ -113,10 +113,19 @@ def get_programs(site=None, uuid=None, course=None):  # pylint: disable=redefine
             # Currently, the cache does not differentiate between a cache miss and a course
             # without programs. After this is changed, log any cache misses here.
             return []
-    else:
+    elif site:
         uuids = cache.get(SITE_PROGRAM_UUIDS_CACHE_KEY_TPL.format(domain=site.domain), [])
         if not uuids:
             logger.warning(u'Failed to get program UUIDs from the cache for site {}.'.format(site.domain))
+
+    return get_programs_by_uuids(uuids)
+
+def get_programs_by_uuids(uuids):
+    """
+    Gets a list of programs for the provided uuids
+    """
+    # a list of UUIDs would be a perfectly reasonable parameter to provide
+    uuids = (str(uuid) for uuid in uuids)
 
     programs = cache.get_many([PROGRAM_CACHE_KEY_TPL.format(uuid=uuid) for uuid in uuids])
     programs = list(programs.values())

@@ -6,6 +6,7 @@ from lms.djangoapps.program_enrollments.api.v1.views import (
     ProgramEnrollmentsView,
     ProgramCourseEnrollmentsView,
     ProgramCourseEnrollmentOverviewView,
+    LearnerProgramEnrollmentsView,
 )
 from openedx.core.constants import COURSE_ID_PATTERN
 
@@ -13,6 +14,11 @@ from openedx.core.constants import COURSE_ID_PATTERN
 app_name = 'lms.djangoapps.program_enrollments'
 
 urlpatterns = [
+    url(
+        r'^programs/enrollments/$',
+        LearnerProgramEnrollmentsView.as_view(),
+        name='learner_program_enrollments'
+    ),
     url(
         r'^programs/{program_uuid}/enrollments/$'.format(program_uuid=PROGRAM_UUID_PATTERN),
         ProgramEnrollmentsView.as_view(),
